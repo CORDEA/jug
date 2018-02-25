@@ -2,7 +2,9 @@ import models.{Service, Tables, Tag}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.util.Failure
 
 class ServiceController(db: Database) {
 
@@ -52,6 +54,31 @@ class ServiceController(db: Database) {
         }
       )
     )
+  }
+
+  def saveService(service: Service): Unit = {
+    val serviceQuery = TableQuery[Tables.Services]
+    val tagQuery = TableQuery[Tables.Tags]
+    val servicesTagsQuery = TableQuery[Tables.ServicesTags]
+
+    val tags = Await.result(db.run(tagQuery.filter(_.name inSet service.tags.map(_.name)).result), Duration.Inf)
+
+    val action = for {
+      serviceId <- ((serviceQuery returning serviceQuery.map(_.id))
+        into ((s, id) => s.copy(id = id)) += Tables.ServicesRow(0, service.name, service.key)).map(_.id)
+      tag <- ((tagQuery returning tagQuery.map(_.id))
+        into ((t, id) => t.copy(id = id)) ++= service.tags
+        .filterNot { t =>
+          tags.map(_.id).contains(t.id)
+        }.map { tag => Tables.TagsRow(0, tag.name) })
+      _ <- ((servicesTagsQuery returning servicesTagsQuery.map(_.id))
+        into ((s, id) => s.copy(id = id)) ++= (tag ++ tags)
+        .map { tag => Tables.ServicesTagsRow(0, serviceId, tag.id) })
+    } yield (serviceId, tag)
+
+    db.run(action) onComplete {
+      case Failure(e) => println(e)
+    }
   }
 }
 
