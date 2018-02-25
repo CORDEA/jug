@@ -11,14 +11,21 @@ trait Routes extends JsonSupport {
           post {
             entity(as[Service]) { service =>
               // FIXME
-              complete(Service(service.name, service.key))
+              complete(Service(service.name, service.key, service.tags))
             }
-          }
+          } ~
+            parameter('tag.*) { tag =>
+              get {
+                complete(List(
+                  Service("name", "key", List("tag"))
+                ))
+              }
+            }
         } ~
           path(Segment) { name =>
             get {
               // FIXME
-              complete(Service(name, "key"))
+              complete(Service(name, "key", List("tag")))
             }
           }
       }
