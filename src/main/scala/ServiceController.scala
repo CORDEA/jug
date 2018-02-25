@@ -4,7 +4,7 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Failure
+import scala.util.{Failure, Success}
 
 class ServiceController(db: Database) {
 
@@ -75,6 +75,27 @@ class ServiceController(db: Database) {
         into ((s, id) => s.copy(id = id)) ++= (tag ++ tags)
         .map { tag => Tables.ServicesTagsRow(0, serviceId, tag.id) })
     } yield (serviceId, tag)
+
+    db.run(action) onComplete {
+      case Failure(e) => println(e)
+    }
+  }
+
+  def deleteService(service: Service): Unit = {
+    val serviceQuery = TableQuery[Tables.Services]
+    val tagQuery = TableQuery[Tables.Tags]
+    val servicesTagsQuery = TableQuery[Tables.ServicesTags]
+
+    val aloneTags = Await.result(
+      db.run(servicesTagsQuery.filter(_.tagId inSet service.tags.map(_.id)).result),
+      Duration.Inf
+    ).groupBy(_.tagId).filter(_._2.lengthCompare(1) == 0).keys
+
+    val action = for {
+      serviceRelations <- servicesTagsQuery.filter(_.serviceId === service.id).delete
+      serviceId <- serviceQuery.filter(_.id === service.id).delete
+      _ <- tagQuery.filter(_.id inSet aloneTags).delete
+    } yield (serviceRelations, serviceId)
 
     db.run(action) onComplete {
       case Failure(e) => println(e)
