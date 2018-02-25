@@ -1,6 +1,6 @@
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import models.Service
+import models.{Service, Tag}
 
 trait Routes extends JsonSupport {
 
@@ -11,13 +11,13 @@ trait Routes extends JsonSupport {
           post {
             entity(as[Service]) { service =>
               // FIXME
-              complete(Service(service.name, service.key, service.tags))
+              complete(Service(1, service.name, service.key, service.tags))
             }
           } ~
             parameter('tag.*) { tag =>
               get {
                 complete(List(
-                  Service("name", "key", List("tag"))
+                  Service(1, "name", "key", List(Tag(1, "tag")))
                 ))
               }
             }
@@ -25,7 +25,7 @@ trait Routes extends JsonSupport {
           path(Segment) { name =>
             get {
               // FIXME
-              complete(Service(name, "key", List("tag")))
+              complete(Service(1, name, "key", List(Tag(1, "tag"))))
             }
           }
       }
