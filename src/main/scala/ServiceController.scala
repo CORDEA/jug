@@ -30,12 +30,12 @@ class ServiceController(db: Database) {
     )
   }
 
-  def findServicesByTag(tag: String): Future[Iterable[Service]] = {
+  def findServicesByTag(tag: Iterable[String]): Future[Iterable[Service]] = {
     val services = TableQuery[Tables.Services]
     val tags = TableQuery[Tables.Tags]
     val servicesTags = TableQuery[Tables.ServicesTags]
     val query = for {
-      ((((_, _), s), _), t) <- ((((tags filter (_.name === tag))
+      ((((_, _), s), _), t) <- ((((tags filter (_.name inSet tag))
         join servicesTags on (_.id === _.tagId))
         join services on (_._2.serviceId === _.id))
         join servicesTags on (_._2.id === _.serviceId)) join tags on (_._2.tagId === _.id)
