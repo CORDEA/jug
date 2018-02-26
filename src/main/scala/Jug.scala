@@ -16,6 +16,8 @@ object Jug extends App with Routes {
   val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
   val db = Database.forConfig("db")
 
+  override val controller = ServiceController(db)
+
   StdIn.readLine()
   bindingFuture
     .flatMap(_.unbind())

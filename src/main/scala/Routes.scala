@@ -1,8 +1,12 @@
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import models.{Service, Tag}
+import models.{Error, Service}
+
+import scala.util.{Failure, Success}
 
 trait Routes extends JsonSupport {
+
+  val controller: ServiceController
 
   val route: Route =
     pathPrefix("jug") {
@@ -10,22 +14,33 @@ trait Routes extends JsonSupport {
         pathEnd {
           post {
             entity(as[Service]) { service =>
-              // FIXME
-              complete(Service(1, service.name, service.key, service.tags))
+              onComplete(controller.saveService(service)) {
+                case Success(s) => complete(service)
+                case Failure(it) => complete {
+                  Error(it.getMessage)
+                }
+              }
             }
           } ~
             parameter('tag.*) { tag =>
               get {
-                complete(List(
-                  Service(1, "name", "key", List(Tag(1, "tag")))
-                ))
+                onComplete(controller.findServicesByTag(tag)) {
+                  case Success(s) => complete(s)
+                  case Failure(it) => complete {
+                    Error(it.getMessage)
+                  }
+                }
               }
             }
         } ~
           path(Segment) { name =>
             get {
-              // FIXME
-              complete(Service(1, name, "key", List(Tag(1, "tag"))))
+              onComplete(controller.getService(name)) {
+                case Success(s) => complete(s)
+                case Failure(it) => complete {
+                  Error(it.getMessage)
+                }
+              }
             }
           }
       }
