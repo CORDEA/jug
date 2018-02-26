@@ -67,7 +67,7 @@ class ServiceController(db: Database) {
       tag <- ((tagQuery returning tagQuery.map(_.id))
         into ((t, id) => t.copy(id = id)) ++= service.tags
         .filterNot { t =>
-          tags.map(_.id).contains(t.id)
+          tags.map(_.name).contains(t.name)
         }.map { tag => Tables.TagsRow(0, tag.name) })
       _ <- ((servicesTagsQuery returning servicesTagsQuery.map(_.id))
         into ((s, id) => s.copy(id = id)) ++= (tag ++ tags)
