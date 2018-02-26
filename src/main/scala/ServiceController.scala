@@ -60,9 +60,8 @@ class ServiceController(db: Database) {
     val tagQuery = TableQuery[Tables.Tags]
     val servicesTagsQuery = TableQuery[Tables.ServicesTags]
 
-    val tags = Await.result(db.run(tagQuery.filter(_.name inSet service.tags.map(_.name)).result), Duration.Inf)
-
     val action = for {
+      tags <- tagQuery.filter(_.name inSet service.tags.map(_.name)).result
       serviceId <- ((serviceQuery returning serviceQuery.map(_.id))
         into ((s, id) => s.copy(id = id)) += Tables.ServicesRow(0, service.name, service.key)).map(_.id)
       tag <- ((tagQuery returning tagQuery.map(_.id))
