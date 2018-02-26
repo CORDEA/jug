@@ -22,6 +22,16 @@ trait Routes extends JsonSupport {
               }
             }
           } ~
+            parameter('id) { id =>
+              delete {
+                onComplete(controller.deleteService(id.toInt)) {
+                  case Success(_) => complete(None)
+                  case Failure(it) => complete {
+                    Error(it.getMessage)
+                  }
+                }
+              }
+            } ~
             parameter('tag.*) { tag =>
               get {
                 onComplete(controller.findServicesByTag(tag)) {

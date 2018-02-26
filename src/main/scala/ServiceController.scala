@@ -7,12 +7,20 @@ import scala.concurrent.{Await, Future}
 
 class ServiceController(db: Database) {
 
+  def getService(id: Int): Future[Service] = {
+    getService(_.id === id)
+  }
+
   def getService(name: String): Future[Service] = {
+    getService(_.name === name)
+  }
+
+  private def getService(by: Tables.Services => Rep[Boolean]): Future[Service] = {
     val services = TableQuery[Tables.Services]
     val tags = TableQuery[Tables.Tags]
     val servicesTags = TableQuery[Tables.ServicesTags]
     val query = for {
-      (s, t) <- (services filter (_.name === name)) joinLeft (servicesTags
+      (s, t) <- (services filter by) joinLeft (servicesTags
         join tags on (_.tagId === _.id)) on (_.id === _._1.serviceId)
     } yield (s, t)
 
@@ -77,10 +85,12 @@ class ServiceController(db: Database) {
     db.run(action)
   }
 
-  def deleteService(service: Service): Future[Unit] = {
+  def deleteService(id: Int): Future[Unit] = {
     val serviceQuery = TableQuery[Tables.Services]
     val tagQuery = TableQuery[Tables.Tags]
     val servicesTagsQuery = TableQuery[Tables.ServicesTags]
+
+    val service = Await.result(getService(id), Duration.Inf)
 
     val aloneTags = Await.result(
       db.run(servicesTagsQuery.filter(_.tagId inSet service.tags.map(_.id)).result),
