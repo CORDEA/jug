@@ -4,7 +4,6 @@ import slick.jdbc.MySQLProfile.api._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Failure
 
 class ServiceController(db: Database) {
 
@@ -56,7 +55,7 @@ class ServiceController(db: Database) {
     )
   }
 
-  def saveService(service: Service): Unit = {
+  def saveService(service: Service): Future[Unit] = {
     val serviceQuery = TableQuery[Tables.Services]
     val tagQuery = TableQuery[Tables.Tags]
     val servicesTagsQuery = TableQuery[Tables.ServicesTags]
@@ -74,14 +73,12 @@ class ServiceController(db: Database) {
       _ <- ((servicesTagsQuery returning servicesTagsQuery.map(_.id))
         into ((s, id) => s.copy(id = id)) ++= (tag ++ tags)
         .map { tag => Tables.ServicesTagsRow(0, serviceId, tag.id) })
-    } yield (serviceId, tag)
+    } yield ()
 
-    db.run(action) onComplete {
-      case Failure(e) => println(e)
-    }
+    db.run(action)
   }
 
-  def deleteService(service: Service): Unit = {
+  def deleteService(service: Service): Future[Unit] = {
     val serviceQuery = TableQuery[Tables.Services]
     val tagQuery = TableQuery[Tables.Tags]
     val servicesTagsQuery = TableQuery[Tables.ServicesTags]
@@ -92,14 +89,12 @@ class ServiceController(db: Database) {
     ).groupBy(_.tagId).filter(_._2.lengthCompare(1) == 0).keys
 
     val action = for {
-      serviceRelations <- servicesTagsQuery.filter(_.serviceId === service.id).delete
-      serviceId <- serviceQuery.filter(_.id === service.id).delete
+      _ <- servicesTagsQuery.filter(_.serviceId === service.id).delete
+      _ <- serviceQuery.filter(_.id === service.id).delete
       _ <- tagQuery.filter(_.id inSet aloneTags).delete
-    } yield (serviceRelations, serviceId)
+    } yield ()
 
-    db.run(action) onComplete {
-      case Failure(e) => println(e)
-    }
+    db.run(action)
   }
 }
 
