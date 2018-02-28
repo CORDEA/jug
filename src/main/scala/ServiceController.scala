@@ -1,4 +1,4 @@
-import models.{Service, Tables, Tag}
+import models.{Service, Tables, Tag, User}
 import slick.jdbc.MySQLProfile.api._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -6,6 +6,12 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 
 class ServiceController(db: Database) {
+
+  def getUser(): Future[User] = {
+    db.run(
+      TableQuery[Tables.Users].take(1).result.head.map { u => User(u.name, u.password) }
+    )
+  }
 
   def getService(id: Int): Future[Service] = {
     getService(_.id === id)
