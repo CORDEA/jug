@@ -14,7 +14,7 @@ trait Tables {
   import slick.jdbc.{GetResult => GR}
 
   /** DDL for all tables. Call .create to execute. */
-  lazy val schema: profile.SchemaDescription = Services.schema ++ ServicesTags.schema ++ Tags.schema
+  lazy val schema: profile.SchemaDescription = Services.schema ++ ServicesTags.schema ++ Tags.schema ++ Users.schema
   @deprecated("Use .schema instead of .ddl", "3.0")
   def ddl = schema
 
@@ -103,4 +103,33 @@ trait Tables {
   }
   /** Collection-like TableQuery object for table Tags */
   lazy val Tags = new TableQuery(tag => new Tags(tag))
+
+  /** Entity class storing rows of table Users
+   *  @param id Database column id SqlType(INT), AutoInc, PrimaryKey
+   *  @param name Database column name SqlType(VARCHAR), Length(45,true)
+   *  @param password Database column password SqlType(VARCHAR), Length(45,true) */
+  case class UsersRow(id: Int, name: String, password: String)
+  /** GetResult implicit for fetching UsersRow objects using plain SQL queries */
+  implicit def GetResultUsersRow(implicit e0: GR[Int], e1: GR[String]): GR[UsersRow] = GR{
+    prs => import prs._
+    UsersRow.tupled((<<[Int], <<[String], <<[String]))
+  }
+  /** Table description of table users. Objects of this class serve as prototypes for rows in queries. */
+  class Users(_tableTag: Tag) extends profile.api.Table[UsersRow](_tableTag, Some("jug"), "users") {
+    def * = (id, name, password) <> (UsersRow.tupled, UsersRow.unapply)
+    /** Maps whole row to an option. Useful for outer joins. */
+    def ? = (Rep.Some(id), Rep.Some(name), Rep.Some(password)).shaped.<>({r=>import r._; _1.map(_=> UsersRow.tupled((_1.get, _2.get, _3.get)))}, (_:Any) =>  throw new Exception("Inserting into ? projection not supported."))
+
+    /** Database column id SqlType(INT), AutoInc, PrimaryKey */
+    val id: Rep[Int] = column[Int]("id", O.AutoInc, O.PrimaryKey)
+    /** Database column name SqlType(VARCHAR), Length(45,true) */
+    val name: Rep[String] = column[String]("name", O.Length(45,varying=true))
+    /** Database column password SqlType(VARCHAR), Length(45,true) */
+    val password: Rep[String] = column[String]("password", O.Length(45,varying=true))
+
+    /** Uniqueness Index over (name) (database name name_UNIQUE) */
+    val index1 = index("name_UNIQUE", name, unique=true)
+  }
+  /** Collection-like TableQuery object for table Users */
+  lazy val Users = new TableQuery(tag => new Users(tag))
 }
