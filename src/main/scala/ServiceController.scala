@@ -7,9 +7,14 @@ import scala.concurrent.{Await, Future}
 
 class ServiceController(db: Database) {
 
-  def getUser(): Future[User] = {
+  def getUser(name: String): Future[User] = {
     db.run(
-      TableQuery[Tables.Users].take(1).result.head.map { u => User(u.name, u.password) }
+      TableQuery[Tables.Users]
+        .filter(_.name === name)
+        .take(1)
+        .result
+        .head
+        .map { u => User(u.name, u.password) }
     )
   }
 

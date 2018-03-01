@@ -1,7 +1,9 @@
+import akka.http.javadsl.model.headers.HttpCredentials
+import akka.http.scaladsl.model.headers.{BasicHttpCredentials, HttpChallenge}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.directives.Credentials
 import models.{Error, Service}
+import org.mindrot.jbcrypt.BCrypt
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -11,21 +13,28 @@ trait Routes extends JsonSupport {
 
   val controller: ServiceController
   private val realm = "Jug"
+  private val challenge = HttpChallenge("Basic", Some(realm))
 
-  private def authenticator(credentials: Credentials): Future[Option[Unit]] =
+  private def authenticator(credentials: Option[HttpCredentials]): Future[AuthenticationResult[String]] =
     credentials match {
-      case p@Credentials.Provided(_) =>
-        Future {
-          if (p.verify("")) Some()
-          else None
-        }
-      case _ => Future.successful(None)
+      case Some(BasicHttpCredentials(username, password)) =>
+        controller.getUser(username)
+          .map { u =>
+            if (BCrypt.checkpw(password, u.password)) {
+              Right(username)
+            } else {
+              Left(challenge)
+            }
+          }
+      case _ => Future {
+        Left(challenge)
+      }
     }
 
   val route: Route =
     pathPrefix("jug") {
       pathPrefix("keys") {
-        authenticateBasicAsync(realm, authenticator) { _ =>
+        authenticateOrRejectWithChallenge(authenticator _) { _ =>
           pathEnd {
             post {
               entity(as[Service]) { service =>
