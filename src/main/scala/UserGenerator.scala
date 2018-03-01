@@ -8,8 +8,12 @@ import scala.concurrent.duration.Duration
 
 object UserGenerator extends App {
 
-  val username = "username"
-  val password = "password"
+  if (args.length < 2) {
+    throw new IllegalArgumentException()
+  }
+
+  val username = args(0)
+  val password = args(1)
 
   val salt = BCrypt.gensalt()
   val hashedPass = BCrypt.hashpw(password, salt)
